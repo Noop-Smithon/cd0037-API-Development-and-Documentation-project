@@ -28,16 +28,11 @@ def create_app(test_config=None):
     """
     @app.route('/categories')
     def retrieve_categories():
-        page = request.args.get('page', 1, type=int)
-        start = (page - 1) * 10
-        end = start + 10
-
         categories = Category.query.all()
-        retrieved_categories = [category.format() for category in categories]
+        retrieved_categories = {category.id: category.type for category in categories}
         return jsonify({
             'success': True,
-            'categories': retrieved_categories[start:end],
-            'total_categories': len(categories) 
+            'categories': retrieved_categories,
             })
     """
     @TODO:
@@ -52,7 +47,7 @@ def create_app(test_config=None):
 
         questions = [question.format() for question in questions]
         current_questions = questions[start:end]
-
+        print(current_questions)
         return current_questions
 
     @app.route("/questions", methods=["GET"])
@@ -60,7 +55,9 @@ def create_app(test_config=None):
         questions = Question.query.order_by(Question.id).all()
         categories = Category.query.order_by(Category.type).all()
         current_questions = paginate_questions(request, questions)
+        print(len(questions))
 
+        
         if len(current_questions) == 0:
             abort(404)
 
@@ -119,14 +116,11 @@ def create_app(test_config=None):
     @app.route('/questions', methods=['POST'])
     def create_question():
         body = request.get_json()
-        question = Question.query.order_by(Question.id).all()
-        current_questions = question
 
         new_question = body.get('question',None)
         new_answer = body.get('answer',None)
         new_category = body.get('category',None)
         new_difficulty = body.get('difficulty',None)
-        search = body.get('search',None)
 
         try:
             question = Question(
@@ -141,9 +135,7 @@ def create_app(test_config=None):
             return jsonify(
                 {
                     "success": True,
-                    "created": question.id,
-                    "questions": current_questions,
-                    "total_questions": len(question)
+                    "created": question.id
                 }
             )
 
@@ -159,7 +151,19 @@ def create_app(test_config=None):
     the form will clear and the question will appear at the end of the last page
     of the questions list in the "List" tab.
     """
+    @app.route("/questions/search", methods=["POST"])
+    def search_questions():
+        search_term = request.get_json()['searchTerm']
+        results = Question.query.filter(Question.question.ilike(f'%{search_term}%')).all()
+        formatted_result = [result.format() for result in results]
 
+        return jsonify(
+            {
+                "questions": formatted_result,
+                "total_questions": len(results),
+                "current_category": None
+            }
+        )
     """
     @TODO:
     Create a POST endpoint to get questions based on a search term.
@@ -170,16 +174,19 @@ def create_app(test_config=None):
     only question that include that string within their question.
     Try using the word "title" to start.
     """
-    # @app.route("/questions", methods=["GET"])
-    # def retrieve_by_category():
-    #     questions = Question.query.order_by(Question.id).all()
+    @app.route("/categories/<int:id>/questions", methods=["GET"])
+    def retrieve_by_category(id):
+        questions = Question.query.filter(Question.category == id).all()
+        formatted_question = [question.format() for question in questions]
         
-    #     try:
-    #         if category:
-    #             selectio
+        return jsonify(
+            {
+                'questions': formatted_question,
+                'total_questions': len(questions),
+                'current_category': None
+            }
+        )
 
-    #     except:
-    #       
     """
     @TODO:
     Create a GET endpoint to get questions based on category.
@@ -188,6 +195,24 @@ def create_app(test_config=None):
     categories in the left column will cause only questions of that
     category to be shown.
     """
+    @app.route('/quizzes', methods=['POST'])
+    def play_quizzes():
+        data = request.get_json()
+        previous_questions = data.get('previous_questions')
+        quiz_category = data.get('quiz_category')['id']
+
+        if quiz_category:
+            questions = Question.query.filter(Question.category == quiz_category).all()
+        else:
+            questions = Question.query.all()
+
+        random_questions = random.choice(questions)
+        
+        return jsonify(
+            {
+                'question': random_questions.format()
+            }
+        )
 
     """
     @TODO:
@@ -200,6 +225,46 @@ def create_app(test_config=None):
     one question at a time is displayed, the user is allowed to answer
     and shown whether they were correct or not.
     """
+    @app.errorhandler(400)
+    def bad_request(error):
+        return jsonify(
+            {
+                "success": False,
+                "error": 400,
+                "message": "bad request"
+            }
+        ), 400
+
+    @app.errorhandler(404)
+    def not_found(error):
+        return jsonify(
+            {
+                "success": False,
+                "error": 404,
+                "message": "resource not found"
+            }
+        ), 404
+
+    @app.errorhandler(405)
+    def not_allowed(error):
+        return jsonify(
+            {
+                "success": False,
+                "error": 405,
+                "message": "method not allowed"
+            }
+        ), 405
+
+        
+    @app.errorhandler(422)
+    def unprocessable(error):    
+        return jsonify(
+                {
+                    "success": False,
+                    "error": 422,
+                    "message": "unprocessable"
+                }
+            ), 422
 
     """
     @TODO:
