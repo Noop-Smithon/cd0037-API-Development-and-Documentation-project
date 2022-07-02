@@ -92,15 +92,15 @@ def create_app(test_config=None):
                 abort(404)
 
             question.delete()
-            selection = Question.query.order_by(Question.id).all()
-            current_questions = paginate_questions(request, selection)
+            questions = Question.query.order_by(Question.id).all()
+            current_questions = paginate_questions(request, questions)
 
             return jsonify(
                 {
                     'success': True,
                     'deleted': question_id,
                     'questions': current_questions,
-                    'total_questions': len(selection)
+                    'total_questions': len(questions)
                 }
             )
 
@@ -140,7 +140,7 @@ def create_app(test_config=None):
             )
 
         except:
-            abort(422)
+            abort(405)
     """
     @TODO:
     Create an endpoint to POST a new question,
@@ -153,17 +153,24 @@ def create_app(test_config=None):
     """
     @app.route("/questions/search", methods=["POST"])
     def search_questions():
-        search_term = request.get_json()['searchTerm']
-        results = Question.query.filter(Question.question.ilike(f'%{search_term}%')).all()
-        formatted_result = [result.format() for result in results]
+        
+        try:
+            search_term = request.get_json()['searchTerm']
+            results = Question.query.filter(Question.question.ilike(f'%{search_term}%')).all()
+            formatted_result = [result.format() for result in results]
 
-        return jsonify(
-            {
-                "questions": formatted_result,
-                "total_questions": len(results),
-                "current_category": None
-            }
-        )
+
+            return jsonify(
+                {
+                    "success": True,
+                    "questions": formatted_result,
+                    "total_questions": len(results),
+                    "current_category": None
+                }
+            )
+
+        except:
+            abort(404)
     """
     @TODO:
     Create a POST endpoint to get questions based on a search term.
@@ -176,16 +183,23 @@ def create_app(test_config=None):
     """
     @app.route("/categories/<int:id>/questions", methods=["GET"])
     def retrieve_by_category(id):
-        questions = Question.query.filter(Question.category == id).all()
-        formatted_question = [question.format() for question in questions]
-        
-        return jsonify(
-            {
-                'questions': formatted_question,
-                'total_questions': len(questions),
-                'current_category': None
-            }
-        )
+
+        try:
+
+            questions = Question.query.filter(Question.category == id).all()
+            formatted_question = [question.format() for question in questions]
+            
+            return jsonify(
+                {
+                    "success": True,
+                    'questions': formatted_question,
+                    'total_questions': len(questions),
+                    'current_category': None
+                }
+            )
+
+        except:
+            abort(404)
 
     """
     @TODO:
@@ -197,22 +211,27 @@ def create_app(test_config=None):
     """
     @app.route('/quizzes', methods=['POST'])
     def play_quizzes():
-        data = request.get_json()
-        previous_questions = data.get('previous_questions')
-        quiz_category = data.get('quiz_category')['id']
+        try:
+            data = request.get_json()
+            previous_questions = data.get('previous_questions')
+            quiz_category = data.get('quiz_category')['id']
 
-        if quiz_category:
-            questions = Question.query.filter(Question.category == quiz_category).all()
-        else:
-            questions = Question.query.all()
+            if quiz_category:
+                questions = Question.query.filter(Question.category == quiz_category).all()
+            else:
+                questions = Question.query.all()
 
-        random_questions = random.choice(questions)
-        
-        return jsonify(
-            {
-                'question': random_questions.format()
-            }
-        )
+            random_questions = random.choice(questions)
+            
+            return jsonify(
+                {
+                    'success': True,
+                    'question': random_questions.format()
+                }
+            )
+
+        except:
+            abort(404)
 
     """
     @TODO:
@@ -255,7 +274,7 @@ def create_app(test_config=None):
             }
         ), 405
 
-        
+
     @app.errorhandler(422)
     def unprocessable(error):    
         return jsonify(

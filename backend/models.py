@@ -3,6 +3,9 @@ from sqlalchemy import Column, String, Integer, create_engine
 from flask_sqlalchemy import SQLAlchemy
 import json
 from settings import database_name, user_name
+from dotenv import load_dotenv
+
+load_dotenv()
 
 
 
